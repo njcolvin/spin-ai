@@ -24,8 +24,8 @@ while not ready:
 
     # get the users ride category
     category = None
-    while category not in ("cadence", "power", "hills", "fusion"):
-        category = input("Enter the category of your ride. (cadence, power, hills, fusion): ")
+    while category not in ("speed", "power", "hills", "combo"):
+        category = input("Enter the category of your ride. (speed, power, hills, combo): ")
 
     # generate a class with AI
     client = Anthropic(
@@ -37,7 +37,7 @@ while not ready:
         messages=[
             {
                 "role": "user",
-                "content": f"You are a personal trainer. Write a minute-by-minute {level} level {length} minute {category} cycling class with exact cadence and resistance ranges for every block. Warm-up and cool down should be between 1 and {length//10} minutes long. Cadence is in units of RPM, ranges should be between 5-10 units, the minimum cadence is 45 and maximum is 125.  Resistance is a 32 level scale and ranges should be 5 units. Format each block as follows:\n\n<block_title>\nTime: <start_minute>-<end_minute>\nCadence: <cadence_low>-<cadence_high>\nResistance: <resistance_low>-<resistance_high>\n\nDo not include any other information in your message besides the blocks of your class.",
+                "content": f"You are a personal trainer. Write a minute-by-minute {level} level {length} minute {category} cycling class with exact cadence and resistance ranges for every block. Warm-up and cool down should be between 1 and {length//10} minutes long. Speed is in units of RPM, ranges should be between 5-10 units, the minimum cadence is 45 and maximum is 125. Power is a 32 level scale and ranges should be 5 units. Format each block as follows:\n\n<block_title>\nTime: <start_minute>-<end_minute>\nSpeed: <speed_low>-<speed_high>\nPower: <power_low>-<power_high>\n\nDo not include any other information in your message besides the blocks of your class.",
             }
         ],
         model="claude-3-5-sonnet-20240620",
