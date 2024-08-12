@@ -9,56 +9,77 @@ level_terms = {
     "medium": "intermediate",
     "hard": "advanced",
 }
+# API client
+client = Anthropic(
+    # This is the default and can be omitted
+    api_key=os.environ.get("ANTHROPIC_API_KEY"),
+)
+# TTS engine
+engine = pyttsx3.init()
 
-ready = False
-while not ready:
-    level = None
-    while level not in ("easy", "medium", "hard"):
-        level = input("Enter the difficulty of your ride. (easy, medium, hard): ")
-    level = level_terms[level]
+def get_spin_class() -> str:
+    spin_class = ""
+    messages = []
+    ready = False
+    while not ready:
+        if not messages:
+            level = None
+            while level not in ("easy", "medium", "hard"):
+                level = input("Enter the difficulty of your ride. (easy, medium, hard): ")
+            level = level_terms[level]
 
-    # get the users ride duration
-    length = None
-    while length not in (10, 20, 30, 45, 60):
-        length = int(input("Enter the duration of your ride in minutes. (10, 20, 30, 45, 60): "))
+            # get the users ride duration
+            length = None
+            while length not in (10, 20, 30, 45, 60):
+                length = int(input("Enter the duration of your ride in minutes. (10, 20, 30, 45, 60): "))
 
-    # get the users ride category
-    category = None
-    while category not in ("speed", "power", "hills", "combo"):
-        category = input("Enter the category of your ride. (speed, power, hills, combo): ")
-
-    # generate a class with AI
-    client = Anthropic(
-        # This is the default and can be omitted
-        api_key=os.environ.get("ANTHROPIC_API_KEY"),
-    )
-    message = client.messages.create(
-        max_tokens=1024,
-        messages=[
-            {
+            # get the users ride category
+            category = None
+            while category not in ("speed", "power", "hills", "combo"):
+                category = input("Enter the category of your ride. (speed, power, hills, combo): ")
+            messages.append({
                 "role": "user",
                 "content": f"You are a personal trainer. Write a minute-by-minute {level} level {length} minute {category} cycling class with exact cadence and resistance ranges for every block. Warm-up and cool down should be between 1 and {length//10} minutes long. Speed is in units of RPM, ranges should be between 5-10 units, the minimum cadence is 45 and maximum is 125. Power is a 32 level scale and ranges should be 5 units. Format each block as follows:\n\n<block_title>\nTime: <start_minute>-<end_minute>\nSpeed: <speed_low>-<speed_high>\nPower: <power_low>-<power_high>\n\nDo not include any other information in your message besides the blocks of your class.",
-            }
-        ],
-        model="claude-3-5-sonnet-20240620",
-    )
+            })
+        
+        message = client.messages.create(
+            max_tokens=512,
+            messages=messages,
+            model="claude-3-5-sonnet-20240620",
+        )
+        spin_class = "\n".join([
+            block.text for block in message.content if block.type == "text"
+        ])
+        messages.append({
+            "role": "assistant",
+            "content": spin_class,
+        })
 
-    spin_class = "\n".join([
-        block.text for block in message.content if block.type == "text"
-    ])
+        print(spin_class)
+        engine.say("Here is your class. Let me know when you are ready to begin.")
+        engine.runAndWait()
+        user_ready = input("\nReady? (y/n/m(odify)/q(uit)): ")
+        match user_ready:
+            case "y":
+                ready = True
+            case "n":
+                messages = []
+            case "m":
+                modification = input("Enter the ride modification. (easier, harder, faster, slower, heavier, lighter): ")
+                messages.append({
+                    "role": "user",
+                    "content": f"Make it {modification}."
+                })
+            case "q":
+                spin_class = ""
+                ready = True
+    return spin_class
 
-    print(spin_class)
-    # split the class up by double line breaks
-    spin_class_split = spin_class.split("\n\n")
-    # TTS engine
-    engine = pyttsx3.init()
-
-    engine.say("Here is your class. Let me know when you are ready to begin.")
-    engine.runAndWait()
-    user_ready = input("\nReady? (y/n/q(uit)): ")
-    ready = user_ready == "y"
-    if user_ready == "q":
-        quit()
+spin_class = get_spin_class()
+if not spin_class:
+    quit()
+# split the class up by double line breaks
+spin_class_split = spin_class.split("\n\n")
 
 engine.say("Let's go!")
 engine.runAndWait()
