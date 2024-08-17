@@ -39,7 +39,7 @@ def get_spin_class() -> str:
                 category = input("Enter the category of your ride. (speed, power, hills, combo): ")
             messages.append({
                 "role": "user",
-                "content": f"You are a personal trainer. Write a minute-by-minute {level} level {length} minute {category} cycling class with exact cadence and resistance ranges for every block. Warm-up and cool down should be between 1 and {length//10} minutes long. Speed is in units of RPM, ranges should be between 5-10 units, the minimum cadence is 45 and maximum is 125. Power is a 32 level scale and ranges should be 5 units. Format each block as follows:\n\n<block_title>\nTime: <start_minute>-<end_minute>\nSpeed: <speed_low>-<speed_high>\nPower: <power_low>-<power_high>\n\nDo not include any other information in your message besides the blocks of your class.",
+                "content": f"You are a personal trainer. Write a minute-by-minute {level} level {length} minute {category} cycling class with exact cadence and resistance ranges for every block. Each block also has a single sentence description, which can include describing a pattern of changing positions or surge and recovery, but it is not required. Warm-up and cool down should be between 1 and {length//10} minutes long. Cadence is in units of RPM, ranges should be between 5-10 units, the minimum cadence is 45 and maximum is 125. Resistance is a 32 level scale and ranges should be 5 units. Format each block as follows:\n\n<title>\nTime: <start_minute>-<end_minute>\nCadence: <cadence_low>-<cadence_high>\nResistance: <resistance_low>-<resistance_high>\nDescription: <description>\n\nDo not include any other information in your message besides the blocks of your class.",
             })
         
         message = client.messages.create(
@@ -56,7 +56,7 @@ def get_spin_class() -> str:
         })
 
         print(spin_class)
-        engine.say("Here is your class. Let me know when you are ready to begin.")
+        engine.say("Here is your ride. Let me know when you are ready to begin.")
         engine.runAndWait()
         user_ready = input("\nReady? (y/n/m(odify)/q(uit)): ")
         match user_ready:
@@ -81,6 +81,13 @@ if not spin_class:
 # split the class up by double line breaks
 spin_class_split = spin_class.split("\n\n")
 
+def speak_at_time(engine, text, target_time):
+    current_time = time.time()
+    if current_time < target_time:
+        time.sleep(target_time - current_time)
+    engine.say(text)
+    engine.runAndWait()
+
 engine.say("Let's go!")
 engine.runAndWait()
 
@@ -91,70 +98,54 @@ for block in spin_class_split:
     title = block_split[0]
     engine.say(title)
     engine.runAndWait()
-    # add a delay between saying each part of the workout block
-    time.sleep(1)
-
+    
     time_split = block_split[1].split(": ")[1].split("-")
     start_time = int(time_split[0])
     end_time = int(time_split[1])
-    time_dlg = f"{end_time - start_time} minutes"
-    engine.say(time_dlg)
-    engine.runAndWait()
-    time.sleep(1)
+    duration = end_time - start_time
+    time_dlg = f"{duration} minute{'s' if duration > 1 else ''}"
 
+    block_start_time = time.time()
+
+    speak_at_time(engine, time_dlg, block_start_time + 1)
 
     cadence_split = block_split[2].split(": ")[1].split("-")
     cadence_low = int(cadence_split[0])
     cadence_high = int(cadence_split[1])
     cadence_dlg = f"Cadence between {cadence_low} and {cadence_high}"
-    engine.say(cadence_dlg)
-    engine.runAndWait()
-    time.sleep(1)
+    speak_at_time(engine, cadence_dlg, block_start_time + 3)
 
     resistance_split = block_split[3].split(": ")[1].split("-")
     resistance_low = int(resistance_split[0])
     resistance_high = int(resistance_split[1])
-    cadence_dlg = f"Resistance between {resistance_low} and {resistance_high}"
-    engine.say(cadence_dlg)
-    engine.runAndWait()
+    resistance_dlg = f"Resistance between {resistance_low} and {resistance_high}"
+    speak_at_time(engine, resistance_dlg, block_start_time + 6)
 
-    time.sleep(1)
+    description = block_split[4].split(": ")[1]
+    speak_at_time(engine, description, block_start_time + 9)
 
     # 5-4-3-2-1 countdown
     for i in range(5, 0, -1):
-        engine.say(str(i))
-        engine.runAndWait()
-        time.sleep(1)
+        speak_at_time(engine, str(i), block_start_time + 14 + (5 - i))
 
-    engine.say("begin")
-    engine.runAndWait()
+    speak_at_time(engine, "begin", block_start_time + 19)
+
+    block_start_time = time.time()
 
     block_duration = end_time - start_time
     # announce each minute of the block, 30 seconds, 10 seconds, 5-4-3-2-1 countdown
     if block_duration > 1:
         for i in range(block_duration - 1, 1, -1):
-            time.sleep(60)
-            engine.say(f"{i} minutes left")
-            engine.runAndWait()
+            speak_at_time(engine, f"{i} minutes left", block_start_time + (block_duration - i) * 60)
         
-        time.sleep(60)
-        engine.say("1 minute left")
-        engine.runAndWait()
+        speak_at_time(engine, "1 minute left", block_start_time + (block_duration - 1) * 60)
 
-    time.sleep(30)
-    engine.say("30 seconds left")
-    engine.runAndWait()
+    speak_at_time(engine, "30 seconds left", block_start_time + (block_duration - 1) * 60 + 30)
+    speak_at_time(engine, "10", block_start_time + (block_duration - 1) * 60 + 30 + 20)
+    speak_at_time(engine, "5", block_start_time + (block_duration - 1) * 60 + 30 + 20 + 5)
+    for i in range(4, 0, -1):
+        speak_at_time(engine, str(i), block_start_time + (block_duration - 1) * 60 + 30 + 20 + 5 + (5 - i))
 
-    time.sleep(20)
-    engine.say("10")
-    engine.runAndWait()
-
-    time.sleep(5)
-    for i in range(5, 0, -1):
-        engine.say(str(i))
-        engine.runAndWait()
-        time.sleep(1)
-
-engine.say("Class is over. Good work.")
+engine.say("Ride is over. Good work.")
 engine.runAndWait()
 engine.stop()
